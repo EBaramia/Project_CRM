@@ -27,6 +27,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGIN_REDIRECT_URL = '/dashboard'
+LOGIN_URL = 'userprofile:login'
+LOGOUT_REDIRECT_URL = 'core_app:index'
+
 
 # Application definition
 
@@ -39,6 +43,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'core_app.apps.CoreAppConfig',
+    'userprofile.apps.UserprofileConfig',
+    'dashboard.apps.DashboardConfig',
 ]
 
 MIDDLEWARE = [
