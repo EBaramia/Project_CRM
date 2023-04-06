@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'core_app.apps.CoreAppConfig',
     'userprofile.apps.UserprofileConfig',
     'dashboard.apps.DashboardConfig',
+    'lead.apps.LeadConfig',
 ]
 
 MIDDLEWARE = [
