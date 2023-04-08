@@ -2,6 +2,7 @@
 {%block content %}
 <div class="py-4 px-4">
   <h1 class="text-xl">Add lead</h1>
+  {% if team.plan.max_leads > team.leads.all|length %}
 
   <form method="POST" action=".">
     {% csrf_token %} {{ form.as_p }}
@@ -9,5 +10,8 @@
       Submit
     </button>
   </form>
+  {% else %}
+  <p>Yon have reached your limit!</p>
+  {% endif %}
 </div>
 {% endblock %}

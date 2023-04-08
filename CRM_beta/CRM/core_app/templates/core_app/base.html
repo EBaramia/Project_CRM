@@ -24,9 +24,14 @@
           >Leads</a
         >
         <a
-          href="{% url 'userprofile:logout' %}"
-          class="py-2 px-3 bg-red-600 rounded-xl text-white"
-          >Log out</a
+          href="{% url 'client_app:clients_list' %}"
+          class="py-2 px-3 bg-indigo-700 rounded-xl text-white"
+          >Clients</a
+        >
+        <a
+          href="{% url 'acount' %}"
+          class="py-2 px-3 bg-indigo-800 rounded-xl text-white"
+          >My account</a
         >
         {% else %}
         <a

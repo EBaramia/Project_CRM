@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from userprofile.views import my_account
 
 
 urlpatterns = [
@@ -23,4 +24,7 @@ urlpatterns = [
     path('', include('userprofile.urls')),
     path('dashboard/', include('dashboard.urls')),
     path('dashboard/leads/', include('lead.urls')),
+    path('dashboard/teams/', include('team.urls')),
+    path('dashboard/clients/', include('client_app.urls')),
+    path('dashboard/my-acount/', my_account, name='acount'),
 ]
