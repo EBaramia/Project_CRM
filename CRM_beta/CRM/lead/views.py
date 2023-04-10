@@ -1,83 +1,139 @@
 from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse_lazy
 from django.contrib import messages
-from .forms import AddLeadForm
+from django.views import View
 from .models import Lead
 from client_app.models import Client
 from team.models import Team
+from django.views.generic import CreateView, ListView, DeleteView, DetailView, UpdateView
 
 
-@login_required
-def leads_list(request):
-    leads = Lead.objects.filter(
-        created_by=request.user, converted_to_client=False)
-    return render(request, 'lead/leads_list.html', {'leads': leads})
+class LeadListView(ListView):
+    model = Lead
+    template_name = 'lead/leads_list.html'
+    context_object_name = 'leads'
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(LeadListView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, converted_to_client=False)
 
 
-@login_required
-def leads_detail(request, pk):
-    lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
-    return render(request, 'lead/leads_detail.html', {
-        'lead': lead
-    })
+class LeadDeatailView(DeleteView):
+    model = Lead
+    template_name = 'lead/leads_detail.html'
+    context_object_name = 'lead'
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(LeadDeatailView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, pk=self.kwargs.get('pk'))
 
 
-@login_required
-def leads_edit(request, pk):
-    lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
-    if request.method == "POST":
-        form = AddLeadForm(request.POST, instance=lead)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'The changes was saved.')
-            return redirect('lead:leads_list')
-    else:
-        form = AddLeadForm()
-    return render(request, 'lead/leads_edit.html', {'form': form})
+class LeadUpdateView(UpdateView):
+    model = Lead
+    template_name = 'lead/leads_edit.html'
+    fields = ('name', 'email', 'description', 'priority', 'status', )
+    success_url = ('lead:leads_list')
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(LeadUpdateView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, pk=self.kwargs.get('pk'))
 
 
-@login_required
-def leads_delete(request, pk):
-    lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
-    lead.delete()
-    messages.success(request, 'The lead was deleted.')
-    return redirect('lead:leads_list')
+class LeadDeleteView(DetailView):
+    model = Lead
+    success_url = reverse_lazy('lead:leads_list')
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(LeadDeleteView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, pk=self.kwargs.get('pk'))
+
+    def post(self, request, *args, **kwargs):
+        lead = self.get_object()
+        lead.delete()
+        return redirect(self.success_url)
 
 
-@login_required
-def add_lead(request):
-    team = Team.objects.filter(created_by=request.user)[0]
-    if request.method == "POST":
-        form = AddLeadForm(request.POST)
-        if form.is_valid():
-            team = Team.objects.filter(created_by=request.user)[0]
-            lead = form.save(commit=False)
-            lead.created_by = request.user
-            lead.team = team
-            lead.save()
-            messages.success(request, 'The lead was created.')
-            return redirect('lead:leads_list')
-    else:
-        form = AddLeadForm()
-    form = AddLeadForm
-    return render(request, 'lead/add_lead.html', {
-        'form': form,
-        'team': team,
-    })
+class LeadCreateView(CreateView):
+    model = Lead
+    template_name = 'lead/add_lead.html'
+    fields = ('name', 'email', 'description', 'priority', 'status', )
+    success_url = reverse_lazy('lead:leads_list')
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        team = Team.objects.filter(created_by=self.request.user)[0]
+        context['team'] = team
+        context['title'] = 'Add lead'
+        return context
+
+    def form_valid(self, form):
+        team = Team.objects.filter(created_by=self.request.user)[0]
+        self.object = form.save(commit=False)
+        self.object.created_by = self.request.user
+        self.object.team = team
+        self.object.save()
+        return redirect(self.get_success_url())
 
 
-@login_required
-def convert_to_client(request, pk):
-    lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
-    team = Team.objects.filter(created_by=request.user)[0]
-    client = Client.objects.create(
-        name=lead.name,
-        email=lead.email,
-        description=lead.description,
-        created_by=request.user,
-        team=team,
-    )
-    lead.converted_to_client = True
-    lead.save()
-    messages.success(request, 'The lead was converted to a client.')
-    return redirect('lead:leads_list')
+class ConvertToClientView(View):
+
+    def get(self, request, *args, **kwargs):
+        pk = self.kwargs.get('pk')
+        lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
+        team = Team.objects.filter(created_by=request.user)[0]
+
+        client = Client.objects.create(
+            name=lead.name,
+            email=lead.email,
+            description=lead.description,
+            created_by=request.user,
+            team=team,
+        )
+        lead.converted_to_client = True
+        lead.save()
+        messages.success(request, 'The lead was converted to a client.')
+
+        return redirect('lead:leads_list')
+
+
+# @login_required
+# def convert_to_client(request, pk):
+#     lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
+#     team = Team.objects.filter(created_by=request.user)[0]
+#     client = Client.objects.create(
+#         name=lead.name,
+#         email=lead.email,
+#         description=lead.description,
+#         created_by=request.user,
+#         team=team,
+#     )
+#     lead.converted_to_client = True
+#     lead.save()
+#     messages.success(request, 'The lead was converted to a client.')
+#     return redirect('lead:leads_list')

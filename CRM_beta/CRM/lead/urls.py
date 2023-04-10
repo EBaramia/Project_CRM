@@ -1,13 +1,13 @@
 from django.urls import path
-from .views import add_lead, leads_list, leads_detail, leads_delete, leads_edit, convert_to_client
+from .views import LeadCreateView, LeadDeleteView, LeadUpdateView, ConvertToClientView, LeadDeatailView, LeadListView
 
 app_name = 'lead'
 
 urlpatterns = [
-    path('', leads_list, name='leads_list'),
-    path('<int:pk>/', leads_detail, name='leads_detail'),
-    path('<int:pk>/delete/', leads_delete, name='leads_delete'),
-    path('<int:pk>/edit/', leads_edit, name='leads_edit'),
-    path('<int:pk>/convert/', convert_to_client, name='leads_convert'),
-    path('add-lead/', add_lead, name='add_lead'),
+    path('', LeadListView.as_view(), name='leads_list'),
+    path('<int:pk>/', LeadDeatailView.as_view(), name='leads_detail'),
+    path('<int:pk>/delete/', LeadDeleteView.as_view(), name='leads_delete'),
+    path('<int:pk>/edit/', LeadUpdateView.as_view(), name='leads_edit'),
+    path('<int:pk>/convert/', ConvertToClientView.as_view(), name='leads_convert'),
+    path('add-lead/', LeadCreateView.as_view(), name='add_lead'),
 ]
