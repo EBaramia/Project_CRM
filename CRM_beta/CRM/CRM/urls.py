@@ -13,7 +13,9 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
+from django.conf.urls.static import static
 from django.urls import path, include
 from userprofile.views import my_account
 
@@ -27,4 +29,4 @@ urlpatterns = [
     path('dashboard/teams/', include('team.urls')),
     path('dashboard/clients/', include('client_app.urls')),
     path('dashboard/my-acount/', my_account, name='acount'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

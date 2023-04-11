@@ -3,7 +3,7 @@ from django.utils.decorators import method_decorator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.contrib import messages
-from .forms import AddCommentForm
+from .forms import AddCommentForm, AddFileForm
 from django.views import View
 from .models import Lead
 from client_app.models import Client, Comment as ClientComment
@@ -73,6 +73,8 @@ class LeadDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = AddCommentForm()
+        context['fileform'] = AddFileForm()
+
         return context
 
     def get_queryset(self):
@@ -105,6 +107,20 @@ class LeadCreateView(CreateView):
         self.object.team = team
         self.object.save()
         return redirect(self.get_success_url())
+
+
+class AddFileView(View):
+    def post(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        form = AddFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            team = Team.objects.filter(created_by=self.request.user)[0]
+            file = form.save(commit=False)
+            file.team = team
+            file.lead_id = pk
+            file.created_by = request.user
+            file.save()
+        return redirect('lead:leads_detail', pk=pk)
 
 
 class AddCommentView(View):
