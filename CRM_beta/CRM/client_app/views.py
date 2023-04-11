@@ -1,62 +1,122 @@
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse_lazy
 from django.contrib import messages
-from .forms import AddClientForm
-from .models import Client
 from team.models import Team
+from django.views import View
+from .models import Client
+from .forms import AddCommentForm
+from django.views.generic import CreateView, ListView, DeleteView, DetailView, UpdateView
 
 
-@login_required
-def clients_list(request):
-    clients = Client.objects.filter(created_by=request.user)
-    return render(request, 'client_app/client_list.html', {'clients': clients})
+class ClientsListView(ListView):
+    model = Client
+    template_name = 'client_app/client_list.html'
+    context_object_name = 'clients'
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(ClientsListView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user)
 
 
-@login_required
-def clients_detail(request, pk):
-    client = get_object_or_404(Client, created_by=request.user, pk=pk)
-    return render(request, 'client_app/client_detail.html', {'client': client})
+class ClientDetailView(DetailView):
+    model = Client
+    template_name = 'client_app/client_detail.html'
+    context_object_name = 'client'
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = AddCommentForm()
+        return context
+
+    def get_queryset(self):
+        queryset = super(ClientDetailView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, pk=self.kwargs.get('pk'))
 
 
-@login_required
-def clients_add(request):
-    team = Team.objects.filter(created_by=request.user)[0]
-    if request.method == "POST":
-        form = AddClientForm(request.POST)
+class AddCommentView(View):
+    def post(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        form = AddCommentForm(request.POST)
         if form.is_valid():
-            team = Team.objects.filter(created_by=request.user)[0]
-            client = form.save(commit=False)
-            client.created_by = request.user
-            client.team = team
-            client.save()
-            messages.success(request, 'The client was created.')
-            return redirect('client_app:clients_list')
-    else:
-        form = AddClientForm()
-    form = AddClientForm
-    return render(request, 'client_app/client_add.html', {
-        'form': form,
-        'team': team,
-    })
+            team = Team.objects.filter(created_by=self.request.user)[0]
+            comment = form.save(commit=False)
+            comment.team = team
+            comment.created_by = request.user
+            comment.client_id = pk
+            comment.save()
+        return redirect('client_app:clients_detail', pk=pk)
 
 
-@login_required
-def clients_edit(request, pk):
-    client = get_object_or_404(Client, created_by=request.user, pk=pk)
-    if request.method == "POST":
-        form = AddClientForm(request.POST, instance=client)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'The changes was saved.')
-            return redirect('client_app:clients_list')
-    else:
-        form = AddClientForm(instance=client)
-    return render(request, 'client_app/client_edit.html', {'form': form})
+class ClientCreateView(CreateView):
+    model = Client
+    template_name = 'lead/add_lead.html'
+    fields = ('name', 'email', 'description', )
+    success_url = reverse_lazy('client_app:clients_list')
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        team = Team.objects.filter(created_by=self.request.user)[0]
+        context['team'] = team
+        context['title'] = 'Add client'
+        return context
+
+    def form_valid(self, form):
+        team = Team.objects.filter(created_by=self.request.user)[0]
+        self.object = form.save(commit=False)
+        self.object.created_by = self.request.user
+        self.object.team = team
+        self.object.save()
+        messages.success(self.request, 'The client was created.')
+
+        return redirect(self.get_success_url())
 
 
-@login_required
-def clients_delete(request, pk):
-    client = get_object_or_404(Client, created_by=request.user, pk=pk)
-    client.delete()
-    messages.success(request, 'The client was deleted.')
-    return redirect('client_app:clients_list')
+class ClientsUpdateView(UpdateView):
+    model = Client
+    template_name = 'client_app/client_edit.html'
+    fields = ('name', 'email', 'description', )
+    success_url = reverse_lazy('client_app:clients_list')
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(ClientsUpdateView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, pk=self.kwargs.get('pk'))
+
+
+class ClientDeleteView(DeleteView):
+    model = Client
+    success_url = reverse_lazy('client_app:clients_list')
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super(ClientDeleteView, self).get_queryset()
+        return queryset.filter(
+            created_by=self.request.user, pk=self.kwargs.get('pk'))
+
+    def post(self, request, *args, **kwargs):
+        client = self.get_object()
+        client.delete()
+        return redirect(self.success_url)

@@ -1,5 +1,4 @@
-{% extends 'core_app/base.html' %} {% block title %} {{ client.name }}
-{%endblock%} {% block content %}
+{% extends 'core_app/base.html' %} {% block title %} {{ client.name }} {%endblock%} {% block content %}
 <div class="py-4 px-4">
   <h1 class="mb-4 text-xl">{{ client.name }}</h1>
 
@@ -15,16 +14,35 @@
   <p class="mb-6">{{client.modified_at| date:"d.M.Y H:i"}}</p>
 
   <hr class="my-3" />
+  <form id="client_delete_form" method="post" action="{% url 'client_app:clients_delete' client.id %}">
+    {% csrf_token %}
+  </form>
+
+  <a href="{% url 'client_app:clients_edit' client.id %}" class="py-2 px-4 rounded-xl bg-indigo-500 text-white">Edit</a>
   <a
-    href="{% url 'client_app:clients_edit' client.id %}"
-    class="py-2 px-4 rounded-xl bg-indigo-500 text-white"
-    >Edit</a
-  >
-  <a
-    href="{% url 'client_app:clients_delete' client.id %}"
+    href="#"
+    onclick="document.getElementById('client_delete_form').submit();"
     class="py-2 px-4 rounded-xl bg-red-500 text-white"
     >Delete</a
   >
+
+  <hr class="my-3" />
+  <h2 class="text-2xl">Comments</h2>
+
+  <div class="space-y-4">
+    {% for comment in client.comments.all %}
+    <div class="bg-gray-100 p-6 rounded-xl">
+      <p class="mb-2"><strong>{{ comment.created_by }}</strong> - {{ comment.created_at }}</p>
+      {{ comment.content }}
+    </div>
+
+    {% endfor %}
+  </div>
+
+  <form method="post" action="{% url 'client_app:add_comment' client.id %}">
+    {% csrf_token %} {{ form.as_p }}
+    <button class="py-2 px-4 rounded-xl bg-blue-500 text-white">Submit</button>
+  </form>
 
   <hr class="my-3" />
 
