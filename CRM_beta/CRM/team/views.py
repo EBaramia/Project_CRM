@@ -6,6 +6,27 @@ from .forms import TeamForm
 
 
 @login_required
+def teams_list(request):
+    teams = Team.objects.filter(members__in=[request.user])
+    return render(request, 'team/team_list.html', {'teams': teams})
+
+
+@login_required
+def teams_activate(request, pk):
+    team = Team.objects.filter(members__in=[request.user]).get(pk=pk)
+    userprofile = request.user.userprofile
+    userprofile.active_team = team
+    userprofile.save()
+    return redirect('team:detail', pk=pk)
+
+
+@login_required
+def detail(request, pk):
+    team = get_object_or_404(Team, members__in=[request.user], pk=pk)
+    return render(request, 'team/detail.html', {'team': team})
+
+
+@login_required
 def edit_team(request, pk):
     team = get_object_or_404(Team, created_by=request.user, pk=pk)
 

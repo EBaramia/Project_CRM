@@ -2,27 +2,28 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from .models import UserProfile
+from .forms import SingUpForm
 from team.models import Team
 
 
 def signup(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = SingUpForm(request.POST)
 
         if form.is_valid():
             user = form.save()
-            UserProfile.objects.create(user=user)
             team = Team.objects.create(
                 name='The team name', created_by=request.user)
             team.members.add(request.user)
             team.save()
+            UserProfile.objects.create(
+                user=user, active_team=team)
             return redirect('userprofile:login')
     else:
-        form = UserCreationForm()
+        form = SingUpForm()
     return render(request, 'userprofile/signup_page.html', {'form': form})
 
 
 @login_required
 def my_account(request):
-    team = Team.objects.filter(created_by=request.user)[0]
-    return render(request, 'userprofile/account.html', {'team': team})
+    return render(request, 'userprofile/account.html')

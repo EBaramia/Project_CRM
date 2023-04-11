@@ -1,8 +1,8 @@
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-from django.shortcuts import render, redirect, get_object_or_404
+
+from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import AddCommentForm, AddFileForm
 from django.views import View
 from .models import Lead
@@ -11,14 +11,10 @@ from team.models import Team
 from django.views.generic import CreateView, ListView, DeleteView, DetailView, UpdateView
 
 
-class LeadListView(ListView):
+class LeadListView(LoginRequiredMixin, ListView):
     model = Lead
     template_name = 'lead/leads_list.html'
     context_object_name = 'leads'
-
-    @method_decorator(login_required)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
 
     def get_queryset(self):
         queryset = super(LeadListView, self).get_queryset()
@@ -26,13 +22,9 @@ class LeadListView(ListView):
             created_by=self.request.user, converted_to_client=False)
 
 
-class LeadDeleteView(DeleteView):
+class LeadDeleteView(LoginRequiredMixin, DeleteView):
     model = Lead
     success_url = reverse_lazy('lead:leads_list')
-
-    @method_decorator(login_required)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
 
     def get_queryset(self):
         queryset = super(LeadDeleteView, self).get_queryset()
@@ -45,15 +37,11 @@ class LeadDeleteView(DeleteView):
         return redirect(self.success_url)
 
 
-class LeadUpdateView(UpdateView):
+class LeadUpdateView(LoginRequiredMixin, UpdateView):
     model = Lead
     template_name = 'lead/leads_edit.html'
     fields = ('name', 'email', 'description', 'priority', 'status', )
     success_url = reverse_lazy('lead:leads_list')
-
-    @method_decorator(login_required)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
 
     def get_queryset(self):
         queryset = super(LeadUpdateView, self).get_queryset()
@@ -61,14 +49,10 @@ class LeadUpdateView(UpdateView):
             created_by=self.request.user, pk=self.kwargs.get('pk'))
 
 
-class LeadDetailView(DetailView):
+class LeadDetailView(LoginRequiredMixin, DetailView):
     model = Lead
     template_name = 'lead/leads_detail.html'
     context_object_name = 'lead'
-
-    @method_decorator(login_required)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -83,65 +67,58 @@ class LeadDetailView(DetailView):
             created_by=self.request.user, pk=self.kwargs.get('pk'))
 
 
-class LeadCreateView(CreateView):
+class LeadCreateView(LoginRequiredMixin, CreateView):
     model = Lead
     template_name = 'lead/add_lead.html'
     fields = ('name', 'email', 'description', 'priority', 'status', )
     success_url = reverse_lazy('lead:leads_list')
 
-    @method_decorator(login_required)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        team = Team.objects.filter(created_by=self.request.user)[0]
+        team = self.request.user.userprofile.active_team
         context['team'] = team
         context['title'] = 'Add lead'
         return context
 
     def form_valid(self, form):
-        team = Team.objects.filter(created_by=self.request.user)[0]
         self.object = form.save(commit=False)
         self.object.created_by = self.request.user
-        self.object.team = team
+        self.object.team = self.request.user.userprofile.active_team
         self.object.save()
         return redirect(self.get_success_url())
 
 
-class AddFileView(View):
+class AddFileView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         pk = kwargs.get('pk')
         form = AddFileForm(request.POST, request.FILES)
         if form.is_valid():
-            team = Team.objects.filter(created_by=self.request.user)[0]
             file = form.save(commit=False)
-            file.team = team
+            file.team = self.request.user.userprofile.active_team
             file.lead_id = pk
             file.created_by = request.user
             file.save()
         return redirect('lead:leads_detail', pk=pk)
 
 
-class AddCommentView(View):
+class AddCommentView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         pk = kwargs.get('pk')
         form = AddCommentForm(request.POST)
         if form.is_valid():
-            team = Team.objects.filter(created_by=self.request.user)[0]
             comment = form.save(commit=False)
-            comment.team = team
+            comment.team = self.request.user.userprofile.active_team
             comment.created_by = request.user
             comment.lead_id = pk
             comment.save()
         return redirect('lead:leads_detail', pk=pk)
 
 
-class ConvertToClientView(View):
+class ConvertToClientView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         pk = self.kwargs.get('pk')
         lead = get_object_or_404(Lead, created_by=request.user, pk=pk)
-        team = Team.objects.filter(created_by=request.user)[0]
+        team = self.request.user.userprofile.active_team
 
         client = Client.objects.create(
             name=lead.name,
